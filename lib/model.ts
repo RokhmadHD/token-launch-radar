@@ -326,8 +326,41 @@ function actionFor(p: SnapshotProtocol, capital: number, chain: string, gas: { s
   return `Deposit ${money} of USDC into ${name} on ${chain} and keep the position open.`;
 }
 
+/** The position's main risk, from the category: named before the entry, in the farmer's words. */
+function riskFor(p: SnapshotProtocol): string {
+  const c = (p.category ?? '').toLowerCase();
+  if (c.includes('dex') || c.includes('liquidity') || c.includes('amm')) {
+    return 'impermanent loss: if one pool asset moves far from the other, the position can end up worth less than simply holding — size it so that outcome is acceptable';
+  }
+  if (c.includes('lend') || c.includes('cdp') || c.includes('collateral') || c.includes('stable')) {
+    return 'liquidation: if the collateral falls toward the borrow, the position is sold at a penalty — keep the borrow well under 40% LTV and check it weekly';
+  }
+  if (c.includes('perpetual') || c.includes('derivative') || c.includes('leverage')) {
+    return 'liquidation and funding: one adverse move can close a leveraged position, and funding eats it slowly — stay under 2x and close early';
+  }
+  if (c.includes('bridge')) {
+    return 'bridge risk: the funds depend on the bridge staying sound — bridge only what you plan to use and withdraw when you are done';
+  }
+  if (c.includes('staking') || c.includes('restak')) {
+    return 'slashing and unstaking delays: the stake can be penalized for validator faults and withdrawals can queue for days';
+  }
+  if (c.includes('yield') || c.includes('vault') || c.includes('curator') || c.includes('allocator') || c.includes('aggregate')) {
+    return 'strategy risk: the vault is managed by others and can underperform or take a bad deployment — read what it holds before depositing';
+  }
+  if (c.includes('rwa')) {
+    return 'issuer risk: the yield depends on an off-chain party honoring the asset — treat it as counterparty exposure, not a permissionless position';
+  }
+  if (c.includes('insurance')) {
+    return 'cover denial: claims can be refused for scope reasons — read what the policy actually covers before buying';
+  }
+  if (c.includes('launchpad') || c.includes('launch')) {
+    return 'lockups: funds can be committed before a sale completes and token unlocks can run long — enter only what you can leave';
+  }
+  return 'smart-contract risk: a bug in the protocol\'s contracts can take the deposited funds — check that audits and timelocks are published';
+}
+
 /**
- * A protocol's farm plan: seven steps, each an action with a cost and a time, derived from the
+ * A protocol's farm plan: eight steps, each an action with a cost and a time, derived from the
  * protocol's own record (category, chains, TVL, age) — never from a hand-kept list of names.
  */
 export function farmSteps(p: SnapshotProtocol, age: number | null): FarmStep[] {
@@ -341,6 +374,11 @@ export function farmSteps(p: SnapshotProtocol, age: number | null): FarmStep[] {
       text: 'Open a fresh wallet that holds only the funds you plan to farm, and keep its seed phrase offline.',
       cost: `under ${gasUsd(gas.setup)} to fund it`,
       time: '5 minutes',
+    },
+    {
+      text: `Know the position's main risk before you enter: ${riskFor(p)}.`,
+      cost: 'nothing — the check is reading, not spending',
+      time: '10 minutes before you deposit',
     },
     {
       text: actionFor(p, capital, chain, gas),
@@ -454,6 +492,9 @@ export interface RadarData {
   board_size: number;
   early_size: number;
   live_size: number;
+  /** Pre-token protocols at or above the floor the watchlist's parent rule sets aside (derived: the
+   * count is the snapshot's own — rankable above floor minus the watchlist). */
+  set_aside_parent_products: number;
   anchors: CategoryAnchor[];
   anchor_global: number;
   readiness_notes: string[];
@@ -545,6 +586,12 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
   const { board, anchors, global } = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
+  // Every rankable pre-token protocol below the floor is already on the board, so the radar's early
+  // coverage is complete. Above the floor, the watchlist is the rankable set minus the ones
+  // DefiLlama ties to a parent protocol (the wrapped and staked products): the snapshot's own counts
+  // give that number, and the page states it rather than hiding it.
+  const rankableAboveFloor = snapshot.protocols.filter((p) => p.tvl_usd >= snapshot.floor_usd && isRankable(p)).length;
+  const setAside = Math.max(0, rankableAboveFloor - snapshot.watchlist.length);
   const radar: RadarData = {
     entry_title: ENTRY_TITLE,
     model_version: MODEL_VERSION,
@@ -556,6 +603,7 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     board_size: board.length,
     early_size: early,
     live_size: live.length,
+    set_aside_parent_products: setAside,
     anchors,
     anchor_global: global,
     readiness_notes: [

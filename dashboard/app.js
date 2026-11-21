@@ -143,8 +143,9 @@
     var watchCovered = R.rows.filter(function (r) { return r.tvl_usd >= R.floor_usd; }).length;
     stat(watchCovered + '/' + R.watchlist_size, 'watchlist covered', true);
     stat(String(R.board_size), 'protocols tracked');
-    stat(String(R.early_size), 'early, below floor');
-    stat(String(R.live_size), 'live tokens set aside');
+    stat(R.early_size + '/' + R.early_size, 'early · full coverage');
+    stat(String(R.set_aside_parent_products), 'wrapped set aside');
+    stat(String(R.live_size), 'live tokens apart');
     stat(R.as_of, 'snapshot date');
   }
 
@@ -153,6 +154,7 @@
     var empty = document.getElementById('empty');
     tbody.textContent = '';
     var rows = sorted(filtered());
+    var topValue = R.rows[0] && R.rows[0].implied_value_usd ? R.rows[0].implied_value_usd : 1;
     document.getElementById('count').textContent = '';
     document.getElementById('count').appendChild(el('b', { text: String(rows.length) }));
     document.getElementById('count').appendChild(document.createTextNode(' of ' + R.board_size + ' shown'));
@@ -179,7 +181,10 @@
       tr.appendChild(el('td', { class: 'c-num' }, document.createTextNode(fmtUsd(row.tvl_usd))));
       tr.appendChild(el('td', { class: 'c-num ' + fmtPctClass(row.change_7d) }, document.createTextNode(fmtPct(row.change_7d))));
       tr.appendChild(el('td', { class: 'c-num' }, document.createTextNode(fmtAge(row.age_days))));
-      tr.appendChild(el('td', { class: 'c-num c-value' }, el('span', { class: 'value-big', text: fmtUsd(row.implied_value_usd) })));
+      var valueCell = el('td', { class: 'c-num c-value' }, el('span', { class: 'value-big', text: fmtUsd(row.implied_value_usd) }));
+      var valueBar = el('div', { class: 'value-bar' }, el('i', { style: 'width:' + Math.max(2, Math.round(row.implied_value_usd / topValue * 100)) + '%' }));
+      valueCell.appendChild(valueBar);
+      tr.appendChild(valueCell);
       tr.appendChild(el('td', { class: 'c-conf' }, el('span', { class: 'badge ' + row.confidence, text: row.confidence })));
       tbody.appendChild(tr);
     });
@@ -357,6 +362,7 @@
     var ul = el('ul', { class: 'readiness-list' });
     [
       'one sealed snapshot: no yield rates, team history, funding or points data — only what DefiLlama recorded',
+      'coverage is complete: the board ranks all ' + R.board_size + ' rankable pre-token protocols — the whole ' + R.watchlist_size + '-protocol watchlist plus every one below the $' + Math.round(R.floor_usd / 1e6) + 'M floor; the ' + R.set_aside_parent_products + ' above-floor records DefiLlama ties to a parent product sit out with the wrapped tokens',
       'a protocol that records no token may still have one DefiLlama does not carry',
       'an implied value is a launch scenario under the stated model, never a price prediction',
       'gas and capital figures in farm plans are tier estimates, not quotes',
