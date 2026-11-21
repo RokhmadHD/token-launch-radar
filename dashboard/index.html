@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Token Launch Radar — pre-token protocols ranked by implied launch value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the board</a>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <svg class="radar-mark" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
+        <circle cx="22" cy="22" r="20" class="ring"></circle>
+        <circle cx="22" cy="22" r="13" class="ring ring-2"></circle>
+        <circle cx="22" cy="22" r="6" class="ring ring-3"></circle>
+        <g class="sweep-g">
+          <path d="M22 22 L22 3 A19 19 0 0 1 38.5 12.5 Z" class="sweep"></path>
+        </g>
+        <circle cx="33" cy="14" r="2.2" class="blip"></circle>
+        <circle cx="12" cy="27" r="1.6" class="blip blip-2"></circle>
+      </svg>
+      <div class="brand-text">
+        <h1>Token Launch Radar</h1>
+        <p class="brand-sub">Pre-token protocols, ranked by what a launch would be worth</p>
+      </div>
+    </div>
+    <div class="stats" id="stats" aria-label="Coverage summary"></div>
+  </div>
+  <nav class="tabs" aria-label="Views">
+    <button type="button" class="tab" id="tab-board" data-tab="board" aria-pressed="true">Board</button>
+    <button type="button" class="tab" id="tab-live" data-tab="live" aria-pressed="false">Live tokens</button>
+    <button type="button" class="tab" id="tab-method" data-tab="method" aria-pressed="false">Methodology</button>
+  </nav>
+</header>
+
+<section class="filters" aria-label="Filters">
+  <div class="filter-field grow">
+    <label for="f-q">Search</label>
+    <input type="search" id="f-q" placeholder="Name or slug…" autocomplete="off">
+  </div>
+  <div class="filter-field">
+    <label for="f-category">Category</label>
+    <select id="f-category"><option value="">All</option></select>
+  </div>
+  <div class="filter-field">
+    <label for="f-chain">Chain</label>
+    <select id="f-chain"><option value="">All</option></select>
+  </div>
+  <div class="filter-field">
+    <label for="f-status">Status</label>
+    <select id="f-status">
+      <option value="">All pre-token</option>
+      <option value="watchlist">Watchlist (≥ $50M)</option>
+      <option value="early">Early (below floor)</option>
+      <option value="momentum">Momentum +10% / 7d</option>
+      <option value="fresh">New: listed ≤ 180d</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button type="button" class="btn ghost" id="f-clear">Clear</button>
+    <span class="count" id="count" aria-live="polite"></span>
+  </div>
+</section>
+
+<main id="main" tabindex="-1">
+  <section class="view" id="view-board" aria-label="Ranked board">
+    <table class="board" aria-describedby="count">
+      <thead>
+        <tr>
+          <th scope="col" class="c-rank"><button type="button" data-sort="rank">#<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-name"><button type="button" data-sort="name">Protocol<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-chains">Chains</th>
+          <th scope="col" class="c-num"><button type="button" data-sort="tvl">TVL<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-num"><button type="button" data-sort="change">7d<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-num"><button type="button" data-sort="age">No-token age<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-num c-value"><button type="button" data-sort="implied">Implied launch value<span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th scope="col" class="c-conf">Signal</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>
+      <p class="empty-title">No protocol matches these filters.</p>
+      <button type="button" class="btn ghost" id="empty-clear">Clear the filters</button>
+    </div>
+  </section>
+
+  <section class="view" id="view-live" aria-label="Protocols whose token already trades" hidden>
+    <div class="panel-note">
+      <p>These protocols already have a token: the market prices them every day, so this radar does not
+      rank them. They are here because the model reads their market caps and TVLs to set the valuation
+      anchor the pre-token board is priced against — and to keep the two kinds visibly apart.</p>
+    </div>
+    <table class="board">
+      <thead>
+        <tr>
+          <th scope="col" class="c-rank">#</th>
+          <th scope="col" class="c-name">Protocol</th>
+          <th scope="col">Category</th>
+          <th scope="col" class="c-num">TVL</th>
+          <th scope="col" class="c-num">Market cap</th>
+          <th scope="col" class="c-num">MCAP / TVL</th>
+          <th scope="col" class="c-num">7d</th>
+        </tr>
+      </thead>
+      <tbody id="live-rows"></tbody>
+    </table>
+  </section>
+
+  <section class="view" id="view-method" aria-label="Methodology" hidden>
+    <div class="method-grid" id="method"></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <p class="foot-strong">Every number on this board is an estimate derived from one sealed DefiLlama
+    snapshot, and only the model's own arithmetic stands behind it. A protocol that records no token may
+    still have one DefiLlama does not carry; an implied value is a launch scenario, not a price and not
+    financial advice. Data: <span id="foot-source"></span></p>
+    <p class="foot-dim">Token Launch Radar <span id="foot-version"></span> · snapshot as of <span id="foot-date"></span> ·
+    built by an AI agent for make.fun's bounty token-radar-01 · deterministic: the program writes identical bytes on every run</p>
+  </div>
+</footer>
+
+<div class="backdrop" id="backdrop" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-name" hidden></aside>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
